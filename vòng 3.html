@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Web Thi Toán Lớp 1 (Nâng cao)</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 900px; margin: auto; padding: 10px; }
+    .question { margin: 14px 0; padding-bottom: 8px; border-bottom: 1px solid #ddd; }
+    .timer { font-size: 20px; color: #d00; font-weight: bold; }
+    button { padding: 8px 14px; margin-top: 10px; cursor: pointer; }
+    input[type="text"] { padding: 6px; width: 120px; font-size: 16px; }
+    label { font-size: 16px; }
+    .progress { height: 10px; background: #eee; border-radius: 6px; overflow: hidden; margin: 10px 0; }
+    .bar { height: 100%; width: 0%; background: #4caf50; transition: width .3s; }
+  </style>
+</head>
+<body>
+
+<h1>Web Thi Toán Lớp 1 (Nâng cao)</h1>
+
+<div id="login">
+  <p>Nhập tên học sinh:</p>
+  <input id="studentName" placeholder="Nguyễn Yến, Tuấn, Khánh..." />
+  <button onclick="startExam()">Bắt đầu làm bài</button>
+  <p><small>Danh sách hợp lệ: Nguyễn Yến, Ninh Yến, Ngọc, Bảo, Hân, Khánh, Tuấn</small></p>
+</div>
+
+<div id="exam" style="display:none;">
+  <p class="timer">⏱ Thời gian còn lại: <span id="time">30:00</span></p>
+  <div class="progress"><div id="bar" class="bar"></div></div>
+  <div id="questionBox"></div>
+  <button onclick="submitExam()">Nộp bài</button>
+</div>
+
+<div id="result" style="display:none;"></div>
+
+<script>
+const students = ["Nguyễn Yến", "Ninh Yến", "Ngọc", "Bảo", "Hân", "Khánh", "Tuấn"];
+
+const questions = [
+  { type: "mcq", question: "7 + 8 = ?", options: ["14", "15", "16"], answer: "15" },
+  { type: "input", question: "12 - 5 = ?", answer: "7" },
+  { type: "mcq", question: "9 + 6 = ?", options: ["14", "15", "16"], answer: "15" },
+  { type: "input", question: "15 - 7 = ?", answer: "8" },
+  { type: "mcq", question: "8 + 7 = ?", options: ["14", "15", "16"], answer: "15" },
+  { type: "input", question: "14 - 6 = ?", answer: "8" },
+
+  { type: "mcq", question: "Số nào lớn hơn: 17 hay 14?", options: ["17", "14"], answer: "17" },
+  { type: "input", question: "Điền số còn thiếu: 5, 7, __, 11", answer: "9" },
+  { type: "mcq", question: "🍎🍎🍎🍎 + 🍎🍎 = ?", options: ["5", "6", "7"], answer: "6" },
+  { type: "input", question: "Số liền trước của 10 là?", answer: "9" },
+
+  { type: "mcq", question: "10 + 9 = ?", options: ["18", "19", "20"], answer: "19" },
+  { type: "input", question: "16 - 8 = ?", answer: "8" },
+  { type: "mcq", question: "Số bé hơn: 13 hay 15?", options: ["13", "15"], answer: "13" },
+  { type: "input", question: "Điền số còn thiếu: 2, 4, 6, __, 10", answer: "8" },
+  { type: "mcq", question: "Có 9 bạn, thêm 6 bạn nữa. Có tất cả bao nhiêu bạn?", options: ["14", "15", "16"], answer: "15" },
+
+  { type: "input", question: "18 - 9 = ?", answer: "9" },
+  { type: "mcq", question: "Số nào lớn hơn?", options: ["20", "18"], answer: "20" },
+  { type: "input", question: "Số liền sau của 15 là?", answer: "16" },
+  { type: "mcq", question: "11 + 7 = ?", options: ["17", "18", "19"], answer: "18" },
+  { type: "input", question: "17 - 8 = ?", answer: "9" },
+
+  { type: "mcq", question: "1, 4, 7, __ (điền số đúng)", options: ["9", "10", "11"], answer: "10" },
+  { type: "input", question: "20 - 12 = ?", answer: "8" },
+  { type: "mcq", question: "Có 8 quả cam, cho 3 quả. Còn lại mấy quả?", options: ["4", "5", "6"], answer: "5" },
+  { type: "input", question: "10, 12, __, 16 (điền số đúng)", answer: "14" },
+  { type: "mcq", question: "14 + 5 = ?", options: ["18", "19", "20"], answer: "19" },
+
+  { type: "input", question: "19 - 9 = ?", answer: "10" },
+  { type: "mcq", question: "So sánh: 13 __ 16", options: [">", "<", "="], answer: "<" },
+  { type: "input", question: "3, 6, 9, __ (điền số đúng)", answer: "12" },
+  { type: "mcq", question: "15 + 4 = ?", options: ["18", "19", "20"], answer: "19" },
+  { type: "input", question: "20 - 7 = ?", answer: "13" }
+];
+
+let selectedQuestions = [];
+let timer;
+let timeLeft = 1800;
+
+function startExam() {
+  const name = document.getElementById("studentName").value.trim();
+  if (!students.includes(name)) {
+    alert("Tên không hợp lệ! Hãy nhập đúng tên trong danh sách.");
+    return;
+  }
+  document.getElementById("login").style.display = "none";
+  document.getElementById("exam").style.display = "block";
+  selectedQuestions = shuffle([...questions]).slice(0, 30);
+  renderQuestions();
+  startTimer();
+}
+
+function renderQuestions() {
+  const box = document.getElementById("questionBox");
+  box.innerHTML = "";
+  selectedQuestions.forEach((q, i) => {
+    let html = `<div class="question"><p><b>Câu ${i+1}:</b> ${q.question}</p>`;
+    if (q.type === "mcq") {
+      q.options.forEach(opt => {
+        html += `<label><input type="radio" name="q${i}" value="${opt}"> ${opt}</label><br>`;
+      });
+    } else {
+      html += `<input type="text" name="q${i}" placeholder="Nhập đáp án..." />`;
+    }
+    html += `</div>`;
+    box.innerHTML += html;
+  });
+}
+
+function startTimer() {
+  timer = setInterval(() => {
+    timeLeft--;
+    const min = Math.floor(timeLeft / 60);
+    const sec = timeLeft % 60;
+    document.getElementById("time").textContent = `${min}:${sec.toString().padStart(2, "0")}`;
+    if (timeLeft <= 0) submitExam();
+  }, 1000);
+}
+
+function submitExam() {
+  clearInterval(timer);
+  let correct = 0;
+  let resultHTML = "<h2>Kết quả</h2>";
+  selectedQuestions.forEach((q, i) => {
+    let userAnswer = "";
+    if (q.type === "mcq") {
+      const selected = document.querySelector(`input[name="q${i}"]:checked`);
+      userAnswer = selected ? selected.value : "";
+    } else {
+      const input = document.querySelector(`input[name="q${i}"]`);
+      userAnswer = input ? input.value.trim() : "";
+    }
+    const isCorrect = userAnswer.toLowerCase() === q.answer.toLowerCase();
+    if (isCorrect) correct++;
+    resultHTML += `<p>Câu ${i+1}: ${isCorrect ? "✅ Đúng" : "❌ Sai"} | Bạn làm: ${userAnswer || "Chưa làm"} | Đáp án: <b>${q.answer}</b></p>`;
+  });
+  resultHTML += `<h3>🏆 Tổng kết: Đúng ${correct}/30 – Sai ${30 - correct}</h3>`;
+  document.getElementById("exam").style.display = "none";
+  const resultBox = document.getElementById("result");
+  resultBox.style.display = "block";
+  resultBox.innerHTML = resultHTML;
+}
+
+function shuffle(arr) {
+  return arr.sort(() => Math.random() - 0.5);
+}
+</script>
+
+</body>
+</html>
